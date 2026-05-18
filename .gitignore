@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Next.js Build Outputs
+.next/
+**/ .next/
+out/
+build/
+
+# Backend Build Outputs
+dist/
+**/dist/
+
+# Environment variables
+.env
+.env.local
+.env.production
+.env.development
+.env.test
+
+# Logs & Cache
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.eslintcache
+.turbo/
+.cache/
+
+# OS Metadata
+.DS_Store
+Thumbs.db

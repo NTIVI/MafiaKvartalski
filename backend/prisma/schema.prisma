@@ -1,0 +1,102 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  CIVILIAN
+  MAFIA
+  DON
+  SHERIFF
+  NONE
+}
+
+enum RoomStatus {
+  LOBBY
+  PLAYING
+  FINISHED
+}
+
+enum GamePhase {
+  LOBBY
+  ROLES_ASSIGNMENT
+  DAY_DISCUSSION
+  DAY_VOTING
+  NIGHT_MAFIA
+  NIGHT_DON
+  NIGHT_SHERIFF
+  GAME_OVER
+}
+
+model User {
+  id        String   @id // Telegram ID as String
+  username  String?
+  photoUrl  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  players   Player[]
+}
+
+model Room {
+  id           String     @id @default(uuid())
+  code         String     @unique // 4-6 character room join code
+  hostId       String     // User ID of host
+  status       RoomStatus @default(LOBBY)
+  currentPhase GamePhase  @default(LOBBY)
+  roundNumber  Int        @default(1)
+  winner       String?    // "CIVILIANS", "MAFIA", "NONE"
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  players      Player[]
+  votes        Vote[]
+  logs         GameLog[]
+}
+
+model Player {
+  id            String   @id @default(uuid())
+  userId        String
+  roomId        String
+  role          Role     @default(NONE)
+  isAlive       Boolean  @default(true)
+  isMuted       Boolean  @default(false)
+  seatNumber    Int      // 1 to 10
+  speechTime    Int      @default(60) // in seconds
+  socketId      String?  // Current websocket connection ID
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room          Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  votesCast     Vote[]   @relation("Voter")
+  votesReceived Vote[]   @relation("Target")
+
+  @@unique([roomId, userId])
+  @@unique([roomId, seatNumber])
+}
+
+model Vote {
+  id        String   @id @default(uuid())
+  roomId    String
+  voterId   String
+  targetId  String
+  round     Int
+  phase     GamePhase
+  createdAt DateTime @default(now())
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  voter     Player   @relation("Voter", fields: [voterId], references: [id], onDelete: Cascade)
+  target    Player   @relation("Target", fields: [targetId], references: [id], onDelete: Cascade)
+}
+
+model GameLog {
+  id        String    @id @default(uuid())
+  roomId    String
+  round     Int
+  phase     GamePhase
+  action    String    // e.g., "KILL", "CHECK_DON", "CHECK_SHERIFF", "VOTE", "CHAT"
+  actorId   String?   // Player ID who performed the action
+  targetId  String?   // Player ID target of the action
+  details   String?   // Any JSON or text details
+  createdAt DateTime  @default(now())
+  room      Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+}
