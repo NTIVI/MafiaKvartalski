@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import http from 'http';
 import { prisma } from './db';
 import { setupWebSocket } from './socket';
+import { setupTelegramBot } from './bot';
 
 dotenv.config();
 
@@ -121,6 +122,9 @@ const server = createServer(app);
 
 // Setup WebSockets
 setupWebSocket(server);
+
+// Setup Telegram Bot
+setupTelegramBot();
 
 // Render self-ping mechanism to prevent service from falling asleep (free tier sleep prevention)
 const selfUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${port}`;
