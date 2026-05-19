@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { 
   Skull, Mic, MicOff, Shield, Users, Play, Plus, 
-  Award, Eye, AlertTriangle, ArrowRight 
+  Award, Eye, AlertTriangle, ArrowRight, Crosshair
 } from 'lucide-react';
 import { useWebRTC } from '../hooks/useWebRTC';
 import { AudioStream } from '../components/AudioStream';
@@ -49,6 +49,9 @@ export default function GamePage() {
   const [logs, setLogs] = useState<string[]>([]);
   const [nightCheckResult, setNightCheckResult] = useState<string | null>(null);
   const [votesCastMap, setVotesCastMap] = useState<Record<string, string>>({});
+  
+  // New Action Menu State
+  const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
 
   const socketRef = useRef<WebSocket | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -148,6 +151,7 @@ export default function GamePage() {
           setRoom(payload.room);
           setVotesCastMap({});
           setNightCheckResult(null);
+          setIsActionMenuOpen(false); // Close action menu on phase change
           addLog(`Фаза: ${getPhaseLabel(payload.room.currentPhase)}`);
           break;
         case 'speaker_changed':
@@ -237,7 +241,7 @@ export default function GamePage() {
 
   const leaveRoom = () => {
     if (socketRef.current) { socketRef.current.close(); socketRef.current = null; }
-    setRoom(null); setMyPlayer(null); setLogs([]); setVotesCastMap({}); setNightCheckResult(null);
+    setRoom(null); setMyPlayer(null); setLogs([]); setVotesCastMap({}); setNightCheckResult(null); setIsActionMenuOpen(false);
   };
 
   const addLog = (message: string) => setLogs(prev => [message, ...prev.slice(0, 19)]);
@@ -258,9 +262,10 @@ export default function GamePage() {
 
   const getPositionStyles = (seatNum: number) => {
     const angle = ((seatNum - 1) / 10) * 2 * Math.PI - Math.PI / 2;
+    // Oval layout for better mobile space usage
     return {
-      left: `${50 + 42 * Math.cos(angle)}%`,
-      top: `${50 + 42 * Math.sin(angle)}%`,
+      left: `${50 + 36 * Math.cos(angle)}%`,
+      top: `${50 + 44 * Math.sin(angle)}%`,
       transform: 'translate(-50%, -50%)',
       position: 'absolute' as const
     };
@@ -268,48 +273,85 @@ export default function GamePage() {
 
   const getVotesCount = (playerId: string) => Object.values(votesCastMap).filter(id => id === playerId).length;
 
+  const hasAction = myPlayer?.isAlive && (
+    room?.currentPhase === 'DAY_VOTING' ||
+    (room?.currentPhase === 'NIGHT_MAFIA' && (myPlayer.role === 'MAFIA' || myPlayer.role === 'DON')) ||
+    (room?.currentPhase === 'NIGHT_DON' && myPlayer.role === 'DON') ||
+    (room?.currentPhase === 'NIGHT_SHERIFF' && myPlayer.role === 'SHERIFF')
+  );
+
+  const getActionMenuTitle = () => {
+    if (room?.currentPhase === 'DAY_VOTING') return 'Кого выгнать днем?';
+    if (room?.currentPhase === 'NIGHT_MAFIA') return 'Кого убить ночью?';
+    if (room?.currentPhase === 'NIGHT_DON') return 'Проверить на Шерифа';
+    if (room?.currentPhase === 'NIGHT_SHERIFF') return 'Проверить на Мафию';
+    return 'Сделать выбор';
+  };
+
+  const getActionBtnLabel = () => {
+    if (room?.currentPhase === 'DAY_VOTING') return 'ГОЛОСОВАТЬ';
+    if (room?.currentPhase === 'NIGHT_MAFIA') return 'УБИТЬ';
+    if (room?.currentPhase === 'NIGHT_DON') return 'ИСКАТЬ ШЕРИФА';
+    if (room?.currentPhase === 'NIGHT_SHERIFF') return 'ПРОВЕРИТЬ';
+    return 'ВЫБРАТЬ';
+  };
+
   return (
-    <main className="min-h-[100dvh] w-full flex flex-col px-4 py-4 sm:p-8 bg-[var(--bg-gradient)] relative overflow-hidden">
-      {/* Background Ambience */}
-      <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] rounded-full bg-purple-900/10 blur-[100px] pointer-events-none" />
-      <div className="absolute -bottom-[20%] -right-[10%] w-[60%] h-[50%] rounded-full bg-pink-900/10 blur-[120px] pointer-events-none" />
+    <main className="min-h-[100dvh] w-full flex flex-col px-4 py-6 sm:p-8 bg-[#0a0a0c] relative overflow-hidden text-zinc-200">
+      
+      {/* Persistent Role Header */}
+      {myPlayer && room && room.currentPhase !== 'LOBBY' && (
+        <div className="absolute top-0 left-0 right-0 py-3 bg-gradient-to-b from-black to-transparent flex justify-center z-30 pointer-events-none">
+          <div className="px-5 py-1.5 rounded-full bg-zinc-900/80 border border-zinc-700/50 backdrop-blur-md flex items-center gap-2 shadow-[0_4px_20px_rgba(0,0,0,0.5)] pointer-events-auto">
+            <span className="text-[10px] text-zinc-400 uppercase tracking-widest font-semibold">Ваша роль:</span>
+            <span className={`text-xs font-black uppercase tracking-wider ${
+              myPlayer.role === 'MAFIA' || myPlayer.role === 'DON' ? 'text-red-500' :
+              myPlayer.role === 'SHERIFF' ? 'text-blue-400' : 'text-green-500'
+            }`}>
+              {myPlayer.role === 'MAFIA' ? 'Мафия 🔴' : 
+               myPlayer.role === 'DON' ? 'Дон Мафии 🎩' : 
+               myPlayer.role === 'SHERIFF' ? 'Шериф 👮‍♂️' : 'Мирный 🟢'}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* 1. WELCOME SCREEN */}
       {!room && (
-        <div className="w-full max-w-md mx-auto my-auto glass-panel p-6 sm:p-8 text-center flex flex-col z-10 animate-in slide-in-from-bottom-4 fade-in duration-500">
-          <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-br from-purple-900/60 to-pink-900/60 border border-purple-500/40 flex items-center justify-center shadow-xl mb-6 shadow-purple-900/20">
-            <Skull className="w-10 h-10 text-purple-300 animate-pulse" />
+        <div className="w-full max-w-md mx-auto my-auto glass-panel p-8 text-center flex flex-col z-10 animate-in fade-in duration-700 border-zinc-800">
+          <div className="w-24 h-24 mx-auto rounded-full bg-zinc-900 border border-yellow-600/30 flex items-center justify-center shadow-2xl mb-8 shadow-yellow-900/10">
+            <Skull className="w-12 h-12 text-yellow-600/80" />
           </div>
-          <h1 className="text-3xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-purple-300 via-fuchsia-300 to-pink-300 mb-2">
+          <h1 className="text-4xl font-black tracking-widest text-zinc-100 mb-2 uppercase">
             Мафия
           </h1>
-          <p className="text-sm text-purple-300/60 font-medium mb-8">Голосовой стол в Telegram</p>
+          <p className="text-xs text-yellow-600/70 font-semibold tracking-widest uppercase mb-10">Закрытый клуб</p>
 
           {currentUser && (
-            <div className="flex items-center gap-4 bg-black/30 border border-purple-900/40 rounded-2xl p-4 mb-6 backdrop-blur-sm">
-              <img src={currentUser.photoUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${currentUser.username}`} className="w-12 h-12 rounded-full border border-purple-500/50" />
+            <div className="flex items-center gap-4 bg-zinc-900/60 border border-zinc-800 rounded-2xl p-4 mb-8">
+              <img src={currentUser.photoUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${currentUser.username}`} className="w-12 h-12 rounded-full border border-zinc-700" />
               <div className="text-left">
-                <span className="text-[10px] uppercase tracking-wider text-purple-400 font-bold block mb-0.5">Твой Профиль</span>
-                <span className="text-base font-bold text-white">{currentUser.username}</span>
+                <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold block mb-1">Ваш профиль</span>
+                <span className="text-base font-bold text-zinc-200">{currentUser.username}</span>
               </div>
             </div>
           )}
 
           {joinError && (
-            <div className="bg-red-950/50 border border-red-500/50 rounded-xl p-3 mb-6 text-xs font-medium text-red-200 flex items-center gap-2">
+            <div className="bg-red-950/30 border border-red-900/50 rounded-xl p-3 mb-6 text-xs font-medium text-red-400 flex items-center justify-center gap-2">
               <AlertTriangle className="w-4 h-4 shrink-0" />
               <span>{joinError}</span>
             </div>
           )}
 
           <div className="flex flex-col gap-4 mt-2">
-            <button onClick={createRoom} disabled={isLoading} className="w-full py-4 rounded-2xl font-black text-sm uppercase tracking-wide bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white shadow-lg shadow-purple-600/30 active:scale-95 transition-all flex items-center justify-center gap-2">
-              {isLoading ? 'Загрузка...' : <><Plus className="w-5 h-5" /> Создать комнату</>}
+            <button onClick={createRoom} disabled={isLoading} className="w-full py-4 rounded-xl font-bold text-xs uppercase tracking-[0.2em] bg-zinc-100 hover:bg-white text-black shadow-lg shadow-zinc-100/10 active:scale-95 transition-all flex items-center justify-center gap-3">
+              {isLoading ? 'Загрузка...' : <><Plus className="w-4 h-4" /> Создать стол</>}
             </button>
             <div className="flex items-center gap-3">
-              <input type="text" placeholder="КОД КОМНАТЫ" maxLength={4} value={roomCodeInput} onChange={(e) => setRoomCodeInput(e.target.value.toUpperCase())} className="flex-1 bg-black/40 border border-purple-800/50 rounded-2xl px-4 py-4 text-center tracking-[0.3em] font-black uppercase text-purple-100 focus:outline-none focus:border-purple-500 transition-all placeholder:text-purple-900/60" />
-              <button onClick={joinRoom} disabled={isLoading || roomCodeInput.length < 4} className="h-full aspect-square rounded-2xl font-bold bg-purple-900/40 hover:bg-purple-800/60 border border-purple-700/50 text-purple-300 active:scale-95 transition-all flex items-center justify-center disabled:opacity-50">
-                <ArrowRight className="w-6 h-6" />
+              <input type="text" placeholder="КОД КОМНАТЫ" maxLength={4} value={roomCodeInput} onChange={(e) => setRoomCodeInput(e.target.value.toUpperCase())} className="flex-1 bg-zinc-900/80 border border-zinc-800 rounded-xl px-4 py-4 text-center tracking-[0.4em] font-black uppercase text-zinc-200 focus:outline-none focus:border-yellow-600/50 transition-all placeholder:text-zinc-700" />
+              <button onClick={joinRoom} disabled={isLoading || roomCodeInput.length < 4} className="h-full aspect-square rounded-xl font-bold bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 active:scale-95 transition-all flex items-center justify-center disabled:opacity-50">
+                <ArrowRight className="w-5 h-5" />
               </button>
             </div>
           </div>
@@ -318,46 +360,48 @@ export default function GamePage() {
 
       {/* 2. GAME ROOM */}
       {room && currentUser && (
-        <div className="w-full max-w-[420px] mx-auto flex flex-col z-10 flex-1 animate-in fade-in duration-500">
+        <div className="w-full max-w-[420px] mx-auto flex flex-col z-10 flex-1 animate-in fade-in duration-500 pt-8">
           
           {/* Header */}
-          <div className="glass-panel p-3 mb-4 flex items-center justify-between border-t-0 border-l-0 border-r-0 rounded-none bg-black/20 pb-4">
+          <div className="flex items-center justify-between mb-6 px-2">
             <div>
-              <div className="text-[10px] text-purple-400 font-bold uppercase tracking-widest mb-1">Комната</div>
-              <div className="bg-purple-900/40 border border-purple-500/40 px-3 py-1 rounded-lg text-base font-black text-white tracking-widest">
+              <div className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest mb-1">Стол</div>
+              <div className="text-lg font-black text-yellow-500 tracking-widest">
                 {room.code}
               </div>
             </div>
             <div className="text-right">
-              <div className="text-[10px] text-purple-400 font-bold uppercase tracking-widest mb-1">Статус</div>
-              <div className="text-xs font-bold text-white bg-gradient-to-r from-purple-600/80 to-pink-600/80 px-3 py-1.5 rounded-lg border border-pink-500/30">
+              <div className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest mb-1">Фаза</div>
+              <div className="text-xs font-bold text-zinc-200 uppercase tracking-wider">
                 {getPhaseLabel(room.currentPhase)}
               </div>
             </div>
           </div>
 
-          {/* Secret Role Alert */}
+          {/* Secret Role Assignment Overlay */}
           {room.currentPhase === 'ROLES_ASSIGNMENT' && myPlayer && (
-            <div className="glass-panel-glow p-5 mb-4 text-center animate-pulse border-purple-500/50 relative overflow-hidden rounded-2xl">
-              <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-pink-600/20 blur-xl"></div>
-              <span className="text-[10px] text-purple-300 font-bold tracking-[0.2em] uppercase block mb-2 relative z-10">Твоя Роль</span>
-              {myPlayer.role === 'MAFIA' && <div className="text-red-400 font-black text-2xl tracking-widest flex items-center justify-center gap-2 relative z-10"><Skull className="w-6 h-6" /> МАФИЯ 🔴</div>}
-              {myPlayer.role === 'DON' && <div className="text-red-400 font-black text-2xl tracking-widest flex items-center justify-center gap-2 relative z-10"><Skull className="w-6 h-6" /> ДОН МАФИИ 🎩</div>}
-              {myPlayer.role === 'SHERIFF' && <div className="text-blue-400 font-black text-2xl tracking-widest flex items-center justify-center gap-2 relative z-10"><Shield className="w-6 h-6" /> ШЕРИФ 👮‍♂️</div>}
-              {myPlayer.role === 'CIVILIAN' && <div className="text-green-400 font-black text-2xl tracking-widest flex items-center justify-center gap-2 relative z-10"><Users className="w-6 h-6" /> МИРНЫЙ 🟢</div>}
+            <div className="absolute inset-0 z-40 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-6 animate-in zoom-in duration-700">
+               <div className="w-full max-w-sm border border-zinc-800 bg-zinc-900/80 rounded-3xl p-8 text-center shadow-2xl">
+                  <span className="text-[10px] text-zinc-400 font-bold tracking-[0.3em] uppercase block mb-6">Ваша Роль</span>
+                  {myPlayer.role === 'MAFIA' && <div className="text-red-500 font-black text-3xl tracking-widest mb-4">МАФИЯ 🔴</div>}
+                  {myPlayer.role === 'DON' && <div className="text-red-500 font-black text-3xl tracking-widest mb-4">ДОН МАФИИ 🎩</div>}
+                  {myPlayer.role === 'SHERIFF' && <div className="text-blue-500 font-black text-3xl tracking-widest mb-4">ШЕРИФ 👮‍♂️</div>}
+                  {myPlayer.role === 'CIVILIAN' && <div className="text-green-500 font-black text-3xl tracking-widest mb-4">МИРНЫЙ 🟢</div>}
+                  <p className="text-xs text-zinc-500 leading-relaxed font-medium">Запомните свою роль.<br/>Никому не показывайте экран.</p>
+               </div>
             </div>
           )}
 
-          {/* Responsive Circular Table */}
-          <div className="w-full aspect-square max-w-[360px] mx-auto relative mb-6">
-            <div className="absolute inset-[15%] rounded-full border-[1px] border-purple-700/30 bg-purple-950/20 shadow-[0_0_50px_rgba(168,85,247,0.1)_inset] flex flex-col items-center justify-center backdrop-blur-sm z-0">
+          {/* Elegant Table Layout */}
+          <div className="w-full aspect-[4/5] max-w-[360px] mx-auto relative mb-6">
+            <div className="absolute inset-[10%] rounded-[100px] border border-zinc-800/80 bg-zinc-900/40 shadow-[inset_0_0_60px_rgba(0,0,0,0.8)] flex flex-col items-center justify-center backdrop-blur-sm z-0">
               {room.currentPhase === 'LOBBY' ? (
                 <>
-                  <div className="text-[10px] font-bold text-purple-400/80 uppercase tracking-widest mb-1">Игроки</div>
-                  <div className="text-2xl font-black text-white">{room.players.length}/10</div>
+                  <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Ожидание</div>
+                  <div className="text-3xl font-black text-zinc-200">{room.players.length}<span className="text-zinc-700">/10</span></div>
                   {room.hostId === currentUser.id && (
-                    <button onClick={triggerGameStart} disabled={room.players.length < 3} className="mt-4 px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-xs font-black uppercase tracking-wider transition-all shadow-[0_0_20px_rgba(147,51,234,0.4)] active:scale-95 disabled:opacity-50 disabled:shadow-none z-20 relative">
-                      Начать
+                    <button onClick={triggerGameStart} disabled={room.players.length < 3} className="mt-6 px-6 py-3 rounded-full bg-zinc-100 hover:bg-white text-black text-xs font-black uppercase tracking-widest transition-all shadow-[0_0_30px_rgba(255,255,255,0.1)] active:scale-95 disabled:opacity-50 z-20 relative">
+                      Раздать карты
                     </button>
                   )}
                 </>
@@ -365,19 +409,21 @@ export default function GamePage() {
                 <>
                   {room.currentPhase === 'DAY_DISCUSSION' && activeSpeakerId ? (
                     <>
-                      <div className="text-[10px] text-purple-400 font-bold uppercase tracking-widest mb-1">Говорит</div>
-                      <div className="text-3xl font-black text-white">{speechCountdown}s</div>
+                      <div className="text-[10px] text-yellow-600/80 font-bold uppercase tracking-[0.2em] mb-2">Слово игроку</div>
+                      <div className="text-4xl font-black text-zinc-100">{speechCountdown}</div>
                     </>
                   ) : (
                     <>
-                      <div className="text-xs font-bold text-purple-500 uppercase tracking-[0.3em]">МАФИЯ</div>
+                      <div className="w-16 h-16 rounded-full border border-zinc-800 flex items-center justify-center opacity-50">
+                        <Skull className="w-6 h-6 text-zinc-700" />
+                      </div>
                     </>
                   )}
                 </>
               )}
             </div>
 
-            {/* Players around table */}
+            {/* Players */}
             {Array.from({ length: 10 }).map((_, i) => {
               const seatNum = i + 1;
               const player = room.players.find(p => p.seatNumber === seatNum);
@@ -386,83 +432,64 @@ export default function GamePage() {
               return (
                 <div key={seatNum} style={getPositionStyles(seatNum)} className="flex flex-col items-center z-10">
                   {player ? (
-                    <div className="relative group flex flex-col items-center">
-                      <div className={`w-[13vw] h-[13vw] max-w-[56px] max-h-[56px] rounded-full flex items-center justify-center p-0.5 transition-all duration-300 relative
-                        ${!player.isAlive ? 'border border-gray-800 bg-gray-950/40 opacity-40 grayscale' : 'border border-purple-700/50 bg-black/60 shadow-lg backdrop-blur-md'}
-                        ${isActiveSpeaker ? 'scale-110 !border-2 !border-purple-400 !bg-purple-900/50 shadow-[0_0_20px_rgba(168,85,247,0.6)]' : ''}
+                    <div className="relative flex flex-col items-center">
+                      <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center p-0.5 transition-all duration-500 relative
+                        ${!player.isAlive ? 'border border-zinc-900 bg-black opacity-30 grayscale' : 'border border-zinc-700 bg-zinc-900 shadow-xl'}
+                        ${isActiveSpeaker ? 'scale-110 !border-2 !border-yellow-600 shadow-[0_0_25px_rgba(212,175,55,0.4)]' : ''}
                       `}>
                         <img src={player.user.photoUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${player.user.username}`} className="w-full h-full rounded-full object-cover relative z-10" />
                         
-                        {/* Audio streams rendering (invisibly attached to active players) */}
                         {player.id !== myPlayer?.id && remoteStreams[player.id] && (
                           <AudioStream stream={remoteStreams[player.id]} isMuted={player.isMuted || !player.isAlive} />
                         )}
 
                         {!player.isAlive && (
-                          <div className="absolute inset-0 rounded-full bg-black/60 flex items-center justify-center z-20">
-                            <Skull className="w-5 h-5 text-red-500/80" />
+                          <div className="absolute inset-0 rounded-full bg-black/70 flex items-center justify-center z-20">
+                            <Skull className="w-6 h-6 text-red-700/80" />
                           </div>
                         )}
 
                         {isActiveSpeaker && !player.isMuted && (
-                          <div className="absolute -top-1 -right-1 z-30 bg-purple-500 rounded-full p-1 border border-purple-300">
+                          <div className="absolute -top-1 -right-1 z-30 bg-yellow-600 rounded-full p-1 border border-black shadow-md">
                             <div className="voice-wave">
-                              <div className="voice-wave-bar !h-[8px]"></div>
-                              <div className="voice-wave-bar !h-[12px]"></div>
-                              <div className="voice-wave-bar !h-[8px]"></div>
+                              <div className="voice-wave-bar !bg-black !h-[6px]"></div>
+                              <div className="voice-wave-bar !bg-black !h-[10px]"></div>
+                              <div className="voice-wave-bar !bg-black !h-[6px]"></div>
                             </div>
                           </div>
                         )}
 
                         {player.isAlive && player.isMuted && (
-                          <div className="absolute -bottom-1 -right-1 z-20 bg-black border border-red-500/50 rounded-full p-1 shadow-lg">
-                            <MicOff className="w-2.5 h-2.5 text-red-400" />
+                          <div className="absolute -bottom-1 -right-1 z-20 bg-zinc-900 border border-zinc-700 rounded-full p-1 shadow-lg">
+                            <MicOff className="w-3 h-3 text-red-500" />
                           </div>
                         )}
                         {player.isAlive && !player.isMuted && (
-                          <div className="absolute -bottom-1 -right-1 z-20 bg-black border border-green-500/50 rounded-full p-1 shadow-lg">
-                            <Mic className="w-2.5 h-2.5 text-green-400" />
+                          <div className="absolute -bottom-1 -right-1 z-20 bg-zinc-900 border border-zinc-700 rounded-full p-1 shadow-lg">
+                            <Mic className="w-3 h-3 text-green-500" />
                           </div>
                         )}
                       </div>
 
-                      <div className={`absolute -top-1 -left-1 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black border text-white z-30 
-                        ${!player.isAlive ? 'bg-gray-800 border-gray-600' : 'bg-purple-600 border-purple-400'}
+                      <div className={`absolute -top-1 -left-1 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black border z-30 
+                        ${!player.isAlive ? 'bg-zinc-900 border-zinc-800 text-zinc-600' : 'bg-yellow-600 border-black text-black'}
                       `}>
                         {seatNum}
                       </div>
 
-                      <span className="text-[9px] text-white/90 font-medium truncate w-[60px] text-center mt-1.5 drop-shadow-md">
+                      <span className="text-[10px] text-zinc-300 font-medium truncate w-[64px] text-center mt-2 drop-shadow-md tracking-wide">
                         {player.user.username}
                       </span>
 
                       {room.currentPhase === 'DAY_VOTING' && player.isAlive && getVotesCount(player.id) > 0 && (
-                        <span className="absolute -bottom-4 bg-pink-600 border border-pink-400 rounded-md px-1.5 py-0.5 text-[9px] font-black text-white shadow-lg z-30">
+                        <span className="absolute -bottom-5 bg-red-700 border border-red-900 rounded-md px-2 py-0.5 text-[10px] font-black text-white shadow-xl z-30">
                           {getVotesCount(player.id)}
                         </span>
                       )}
-
-                      {/* Action buttons Contextual */}
-                      {player.isAlive && player.id !== myPlayer?.id && (
-                        <div className="absolute top-[100%] mt-2 z-40 hidden group-hover:flex flex-col gap-1.5 bg-black/90 backdrop-blur-md border border-purple-500/40 p-2 rounded-xl shadow-2xl">
-                          {room.currentPhase === 'DAY_VOTING' && myPlayer?.isAlive && (
-                            <button onClick={() => submitDayVote(player.id)} className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-[10px] font-bold rounded-lg text-white">Голосовать</button>
-                          )}
-                          {room.currentPhase === 'NIGHT_MAFIA' && myPlayer?.isAlive && (myPlayer.role === 'MAFIA' || myPlayer.role === 'DON') && (
-                            <button onClick={() => submitMafiaShoot(player.id)} className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-[10px] font-bold rounded-lg text-white">Убить</button>
-                          )}
-                          {room.currentPhase === 'NIGHT_DON' && myPlayer?.isAlive && myPlayer.role === 'DON' && (
-                            <button onClick={() => submitDonCheck(player.id)} className="px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-[10px] font-bold rounded-lg text-white">Искать Шерифа</button>
-                          )}
-                          {room.currentPhase === 'NIGHT_SHERIFF' && myPlayer?.isAlive && myPlayer.role === 'SHERIFF' && (
-                            <button onClick={() => submitSheriffCheck(player.id)} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-[10px] font-bold rounded-lg text-white">Проверить</button>
-                          )}
-                        </div>
-                      )}
                     </div>
                   ) : (
-                    <div className="w-[13vw] h-[13vw] max-w-[56px] max-h-[56px] rounded-full border border-dashed border-purple-700/30 bg-purple-950/10 flex items-center justify-center">
-                      <span className="text-[10px] font-medium text-purple-400/40">{seatNum}</span>
+                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full border border-dashed border-zinc-800 bg-black/20 flex items-center justify-center">
+                      <span className="text-[10px] font-medium text-zinc-700">{seatNum}</span>
                     </div>
                   )}
                 </div>
@@ -470,17 +497,67 @@ export default function GamePage() {
             })}
           </div>
 
-          {/* Controls */}
+          {/* Action Menu Trigger Button (Replaces hover menus) */}
+          {hasAction && (
+            <button 
+              onClick={() => setIsActionMenuOpen(true)}
+              className="w-full py-4 mb-4 rounded-2xl font-black text-sm uppercase tracking-widest bg-red-700 hover:bg-red-600 text-white shadow-[0_0_20px_rgba(204,0,0,0.3)] border border-red-500/50 active:scale-95 transition-all flex items-center justify-center gap-2 animate-pulse"
+            >
+              <Crosshair className="w-5 h-5" />
+              Сделать Выбор
+            </button>
+          )}
+
+          {/* Bottom Action Menu Modal (Bottom Sheet) */}
+          {isActionMenuOpen && (
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-end justify-center animate-in fade-in duration-300">
+              <div className="bg-zinc-900 w-full max-w-md rounded-t-[32px] p-6 pb-12 border-t border-zinc-700 shadow-2xl animate-in slide-in-from-bottom-12 duration-300">
+                 <h3 className="text-zinc-400 font-bold text-center uppercase tracking-widest mb-6 text-xs">
+                   {getActionMenuTitle()}
+                 </h3>
+                 <div className="flex flex-col gap-2 max-h-[50vh] overflow-y-auto no-scrollbar pb-4">
+                   {room.players.filter(p => p.isAlive && p.id !== myPlayer?.id).map(p => (
+                     <button 
+                       key={p.id}
+                       onClick={() => {
+                          if (room.currentPhase === 'DAY_VOTING') submitDayVote(p.id);
+                          if (room.currentPhase === 'NIGHT_MAFIA') submitMafiaShoot(p.id);
+                          if (room.currentPhase === 'NIGHT_DON') submitDonCheck(p.id);
+                          if (room.currentPhase === 'NIGHT_SHERIFF') submitSheriffCheck(p.id);
+                          setIsActionMenuOpen(false);
+                       }}
+                       className="flex items-center justify-between p-4 rounded-2xl bg-zinc-950 border border-zinc-800 hover:border-red-900/50 hover:bg-red-950/20 active:scale-95 transition-all"
+                     >
+                       <div className="flex items-center gap-4">
+                         <span className="w-8 h-8 rounded-full bg-zinc-800 text-zinc-300 flex items-center justify-center text-xs font-bold border border-zinc-700">{p.seatNumber}</span>
+                         <div className="flex flex-col items-start">
+                           <span className="text-zinc-200 font-bold">{p.user.username}</span>
+                         </div>
+                       </div>
+                       <span className="text-[10px] font-black text-red-500 uppercase tracking-widest bg-red-950/40 px-3 py-1.5 rounded-lg border border-red-900/50">
+                         {getActionBtnLabel()}
+                       </span>
+                     </button>
+                   ))}
+                 </div>
+                 <button onClick={() => setIsActionMenuOpen(false)} className="w-full mt-2 py-4 rounded-xl text-zinc-500 font-bold uppercase tracking-widest text-xs hover:text-zinc-300 hover:bg-zinc-800/50 transition-all">
+                   Отмена
+                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* User Controls */}
           {myPlayer && myPlayer.isAlive && room.currentPhase !== 'LOBBY' && (
             <div className="flex gap-3 mb-4 w-full">
-              <button onClick={toggleMute} className={`flex-1 py-4 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 border shadow-lg transition-all active:scale-95
-                  ${myPlayer.isMuted ? 'bg-red-950/40 border-red-500/40 text-red-300' : 'bg-green-950/40 border-green-500/40 text-green-300'}
+              <button onClick={toggleMute} className={`flex-1 py-4 rounded-2xl font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 border transition-all active:scale-95
+                  ${myPlayer.isMuted ? 'bg-zinc-900 border-red-900/50 text-red-400' : 'bg-zinc-900 border-green-900/50 text-green-400'}
                 `}>
-                {myPlayer.isMuted ? <><MicOff className="w-5 h-5" /> Микрофон Выкл</> : <><Mic className="w-5 h-5" /> Микрофон Вкл</>}
+                {myPlayer.isMuted ? <><MicOff className="w-4 h-4" /> Микрофон Выкл</> : <><Mic className="w-4 h-4" /> Микрофон Вкл</>}
               </button>
               {room.currentPhase === 'DAY_DISCUSSION' && myPlayer.id === activeSpeakerId && (
-                <button onClick={endSpeechEarly} className="flex-1 py-4 rounded-2xl font-black text-xs uppercase tracking-wider bg-pink-600 border border-pink-400 text-white shadow-lg shadow-pink-600/30 active:scale-95 transition-all">
-                  Завершить речь
+                <button onClick={endSpeechEarly} className="flex-1 py-4 rounded-2xl font-bold text-[10px] uppercase tracking-widest bg-zinc-800 border border-zinc-700 text-zinc-300 active:scale-95 transition-all">
+                  Закончить речь
                 </button>
               )}
             </div>
@@ -488,27 +565,27 @@ export default function GamePage() {
 
           {/* Night Check Results */}
           {nightCheckResult && (
-            <div className="w-full bg-purple-900/40 border border-purple-500/50 rounded-2xl p-4 mb-4 text-xs font-bold text-white flex items-center justify-center gap-3 shadow-lg">
-              <Eye className="w-5 h-5 text-purple-300 shrink-0" />
+            <div className="w-full bg-zinc-900 border border-yellow-600/30 rounded-2xl p-4 mb-4 text-xs font-bold text-zinc-200 flex items-center justify-center gap-3 shadow-[0_0_15px_rgba(212,175,55,0.1)]">
+              <Eye className="w-5 h-5 text-yellow-600 shrink-0" />
               <span>{nightCheckResult}</span>
             </div>
           )}
 
           {/* Log panel */}
-          <div className="glass-panel p-4 flex flex-col h-[120px] rounded-2xl bg-black/40 border-purple-900/50 mt-auto">
-            <span className="text-[9px] text-purple-400/80 tracking-[0.2em] font-black uppercase mb-2">События</span>
+          <div className="bg-zinc-900/50 border border-zinc-800 p-4 flex flex-col h-[100px] rounded-3xl mt-auto backdrop-blur-md">
+            <span className="text-[9px] text-zinc-500 tracking-widest font-bold uppercase mb-2">События за столом</span>
             <div className="flex-grow overflow-y-auto no-scrollbar flex flex-col gap-1.5">
-              {logs.length === 0 ? <span className="text-[10px] text-purple-500/50 italic">Пусто...</span> : logs.map((log, idx) => (
-                <div key={idx} className="text-[10px] text-purple-200 font-medium flex items-start gap-2">
-                  <span className="text-purple-500 mt-0.5">•</span><span>{log}</span>
+              {logs.length === 0 ? <span className="text-[10px] text-zinc-600 italic">Тишина...</span> : logs.map((log, idx) => (
+                <div key={idx} className="text-[10px] text-zinc-400 font-medium flex items-start gap-2 leading-relaxed">
+                  <span className="text-yellow-700 mt-0.5">●</span><span>{log}</span>
                 </div>
               ))}
             </div>
           </div>
 
           {room.status === 'LOBBY' && (
-            <button onClick={leaveRoom} className="mt-4 text-[10px] font-bold uppercase tracking-widest text-purple-500/60 hover:text-purple-400 mx-auto block pb-4">
-              Выйти из комнаты
+            <button onClick={leaveRoom} className="mt-6 text-[10px] font-bold uppercase tracking-widest text-zinc-600 hover:text-zinc-400 mx-auto block pb-4 transition-colors">
+              Покинуть стол
             </button>
           )}
         </div>
@@ -516,13 +593,17 @@ export default function GamePage() {
 
       {/* 3. VICTORY SCREEN */}
       {room?.status === 'FINISHED' && myPlayer && (
-        <div className="fixed inset-0 bg-black/95 backdrop-blur-lg flex flex-col items-center justify-center p-6 z-50 animate-in fade-in zoom-in duration-500">
-          <div className="w-full max-w-sm glass-panel p-8 text-center border-2 border-purple-500/40 rounded-3xl relative overflow-hidden shadow-[0_0_50px_rgba(168,85,247,0.2)]">
-            <Award className="w-24 h-24 text-purple-400 mx-auto mb-6 animate-bounce" />
-            <h2 className="text-3xl font-black text-white tracking-widest uppercase mb-2">Игра Окончена</h2>
-            <p className="text-lg text-purple-300 font-medium mb-8">Победители: <span className="font-black text-white">{room.winner === 'MAFIA' ? 'Мафия 🔴' : 'Мирные 🟢'}</span></p>
-            <button onClick={leaveRoom} className="w-full py-4 rounded-2xl font-black text-sm uppercase tracking-wide bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg active:scale-95 transition-all">
-              Вернуться в меню
+        <div className="fixed inset-0 bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 z-50 animate-in fade-in zoom-in duration-700">
+          <div className="w-full max-w-sm bg-zinc-900 border border-zinc-800 p-8 text-center rounded-[32px] shadow-2xl">
+            <Award className="w-20 h-20 text-yellow-600 mx-auto mb-6" />
+            <h2 className="text-2xl font-black text-white tracking-widest uppercase mb-2">Конец Игры</h2>
+            <p className="text-xs text-zinc-400 font-medium uppercase tracking-widest mb-8">
+              Победили: <span className={`font-black text-sm ml-1 ${room.winner === 'MAFIA' ? 'text-red-500' : 'text-green-500'}`}>
+                {room.winner === 'MAFIA' ? 'Мафия 🔴' : 'Мирные 🟢'}
+              </span>
+            </p>
+            <button onClick={leaveRoom} className="w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest bg-zinc-100 hover:bg-white text-black transition-all active:scale-95">
+              Вернуться в лобби
             </button>
           </div>
         </div>
