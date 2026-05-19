@@ -16,12 +16,12 @@ export function setupTelegramBot() {
   bot.onText(/\/start/, (msg) => {
     const chatId = msg.chat.id;
     
-    bot.sendMessage(chatId, `🎩 Добро пожаловать в игру *MafiaKvartalski*!\n\nГород засыпает, просыпается Мафия... Готовы ли вы бросить вызов преступности или стать её главой?\n\nНажмите кнопку ниже, чтобы сесть за игровой стол:`, {
+    bot.sendMessage(chatId, `зайди тебя выебу`, {
       parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [
           [{
-            text: '🃏 Играть в Мафию',
+            text: 'зайти',
             web_app: { url: webAppUrl }
           }]
         ]
