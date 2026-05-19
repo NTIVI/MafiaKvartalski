@@ -9,6 +9,8 @@ export function useWebRTC(
   const localStreamRef = useRef<MediaStream | null>(null);
   const peersRef = useRef<Map<string, RTCPeerConnection>>(new Map());
   const [remoteStreams, setRemoteStreams] = useState<Record<string, MediaStream>>({});
+  const [isMicReady, setIsMicReady] = useState(false);
+  const signalQueueRef = useRef<Array<{ senderId: string, signal: any }>>([]);
 
   // 1. Initialize local microphone
   useEffect(() => {
@@ -22,6 +24,7 @@ export function useWebRTC(
         stream.getAudioTracks().forEach(track => {
           track.enabled = !isMuted;
         });
+        setIsMicReady(true);
       } catch (err) {
         console.error('Error accessing microphone', err);
       }
@@ -46,7 +49,13 @@ export function useWebRTC(
 
   // Handle incoming signaling messages
   const handleSignal = useCallback(async (senderId: string, signal: any) => {
-    if (!currentUserId || !localStreamRef.current) return;
+    if (!currentUserId) return;
+    
+    // If mic is not ready yet, queue the signal
+    if (!isMicReady) {
+      signalQueueRef.current.push({ senderId, signal });
+      return;
+    }
     
     let peer = peersRef.current.get(senderId);
     
@@ -120,9 +129,20 @@ export function useWebRTC(
     return peer;
   }, [socket]);
 
+  // Process queued signals when mic becomes ready
+  useEffect(() => {
+    if (isMicReady && signalQueueRef.current.length > 0) {
+      const queue = [...signalQueueRef.current];
+      signalQueueRef.current = [];
+      queue.forEach(({ senderId, signal }) => {
+        handleSignal(senderId, signal);
+      });
+    }
+  }, [isMicReady, handleSignal]);
+
   // Connect to new players (the ones we don't have connections with yet)
   useEffect(() => {
-    if (!socket || !currentUserId || !localStreamRef.current) return;
+    if (!socket || !currentUserId || !isMicReady) return;
 
     // We only initiate connections to peers with ID > our ID to prevent duplicate offers
     activePlayersIds.forEach(async (playerId) => {
@@ -144,7 +164,7 @@ export function useWebRTC(
         }
       }
     });
-  }, [activePlayersIds, socket, currentUserId, createPeerConnection]);
+  }, [activePlayersIds, socket, currentUserId, createPeerConnection, isMicReady]);
 
   // Clean up removed players
   useEffect(() => {
