@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { 
-  Skull, Mic, MicOff, Shield, Users, Play, Plus, 
+import {
+  Skull, Mic, MicOff, Shield, Users, Play, Plus,
   Award, Eye, AlertTriangle, ArrowRight, Crosshair
 } from 'lucide-react';
 import { useWebRTC } from '../hooks/useWebRTC';
@@ -49,7 +49,7 @@ export default function GamePage() {
   const [logs, setLogs] = useState<string[]>([]);
   const [nightCheckResult, setNightCheckResult] = useState<string | null>(null);
   const [votesCastMap, setVotesCastMap] = useState<Record<string, string>>({});
-  
+
   // New Action Menu State
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
 
@@ -298,19 +298,18 @@ export default function GamePage() {
 
   return (
     <main className="min-h-[100dvh] w-full flex flex-col px-4 py-6 sm:p-8 bg-[#0a0a0c] relative overflow-hidden text-zinc-200">
-      
+
       {/* Persistent Role Header */}
       {myPlayer && room && room.currentPhase !== 'LOBBY' && (
         <div className="absolute top-0 left-0 right-0 py-3 bg-gradient-to-b from-black to-transparent flex justify-center z-30 pointer-events-none">
           <div className="px-5 py-1.5 rounded-full bg-zinc-900/80 border border-zinc-700/50 backdrop-blur-md flex items-center gap-2 shadow-[0_4px_20px_rgba(0,0,0,0.5)] pointer-events-auto">
             <span className="text-[10px] text-zinc-400 uppercase tracking-widest font-semibold">Ваша роль:</span>
-            <span className={`text-xs font-black uppercase tracking-wider ${
-              myPlayer.role === 'MAFIA' || myPlayer.role === 'DON' ? 'text-red-500' :
-              myPlayer.role === 'SHERIFF' ? 'text-blue-400' : 'text-green-500'
-            }`}>
-              {myPlayer.role === 'MAFIA' ? 'Мафия 🔴' : 
-               myPlayer.role === 'DON' ? 'Дон Мафии 🎩' : 
-               myPlayer.role === 'SHERIFF' ? 'Шериф 👮‍♂️' : 'Мирный 🟢'}
+            <span className={`text-xs font-black uppercase tracking-wider ${myPlayer.role === 'MAFIA' || myPlayer.role === 'DON' ? 'text-red-500' :
+                myPlayer.role === 'SHERIFF' ? 'text-blue-400' : 'text-green-500'
+              }`}>
+              {myPlayer.role === 'MAFIA' ? 'Мафия 🔴' :
+                myPlayer.role === 'DON' ? 'Дон Мафии 🎩' :
+                  myPlayer.role === 'SHERIFF' ? 'Шериф 👮‍♂️' : 'Мирный 🟢'}
             </span>
           </div>
         </div>
@@ -361,7 +360,7 @@ export default function GamePage() {
       {/* 2. GAME ROOM */}
       {room && currentUser && (
         <div className="w-full max-w-[420px] mx-auto flex flex-col z-10 flex-1 animate-in fade-in duration-500 pt-8">
-          
+
           {/* Header */}
           <div className="flex items-center justify-between mb-6 px-2">
             <div>
@@ -381,14 +380,14 @@ export default function GamePage() {
           {/* Secret Role Assignment Overlay */}
           {room.currentPhase === 'ROLES_ASSIGNMENT' && myPlayer && (
             <div className="absolute inset-0 z-40 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-6 animate-in zoom-in duration-700">
-               <div className="w-full max-w-sm border border-zinc-800 bg-zinc-900/80 rounded-3xl p-8 text-center shadow-2xl">
-                  <span className="text-[10px] text-zinc-400 font-bold tracking-[0.3em] uppercase block mb-6">Ваша Роль</span>
-                  {myPlayer.role === 'MAFIA' && <div className="text-red-500 font-black text-3xl tracking-widest mb-4">МАФИЯ 🔴</div>}
-                  {myPlayer.role === 'DON' && <div className="text-red-500 font-black text-3xl tracking-widest mb-4">ДОН МАФИИ 🎩</div>}
-                  {myPlayer.role === 'SHERIFF' && <div className="text-blue-500 font-black text-3xl tracking-widest mb-4">ШЕРИФ 👮‍♂️</div>}
-                  {myPlayer.role === 'CIVILIAN' && <div className="text-green-500 font-black text-3xl tracking-widest mb-4">МИРНЫЙ 🟢</div>}
-                  <p className="text-xs text-zinc-500 leading-relaxed font-medium">Запомните свою роль.<br/>Никому не показывайте экран.</p>
-               </div>
+              <div className="w-full max-w-sm border border-zinc-800 bg-zinc-900/80 rounded-3xl p-8 text-center shadow-2xl">
+                <span className="text-[10px] text-zinc-400 font-bold tracking-[0.3em] uppercase block mb-6">Ваша Роль</span>
+                {myPlayer.role === 'MAFIA' && <div className="text-red-500 font-black text-3xl tracking-widest mb-4">МАФИЯ 🔴</div>}
+                {myPlayer.role === 'DON' && <div className="text-red-500 font-black text-3xl tracking-widest mb-4">ДОН МАФИИ 🎩</div>}
+                {myPlayer.role === 'SHERIFF' && <div className="text-blue-500 font-black text-3xl tracking-widest mb-4">ШЕРИФ 👮‍♂️</div>}
+                {myPlayer.role === 'CIVILIAN' && <div className="text-green-500 font-black text-3xl tracking-widest mb-4">МИРНЫЙ 🟢</div>}
+                <p className="text-xs text-zinc-500 leading-relaxed font-medium">Запомните свою роль.<br />Никому не показывайте экран.</p>
+              </div>
             </div>
           )}
 
@@ -438,7 +437,7 @@ export default function GamePage() {
                         ${isActiveSpeaker ? 'scale-110 !border-2 !border-yellow-600 shadow-[0_0_25px_rgba(212,175,55,0.4)]' : ''}
                       `}>
                         <img src={player.user.photoUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${player.user.username}`} className="w-full h-full rounded-full object-cover relative z-10" />
-                        
+
                         {player.id !== myPlayer?.id && remoteStreams[player.id] && (
                           <AudioStream stream={remoteStreams[player.id]} isMuted={player.isMuted || !player.isAlive} />
                         )}
@@ -499,7 +498,7 @@ export default function GamePage() {
 
           {/* Action Menu Trigger Button (Replaces hover menus) */}
           {hasAction && (
-            <button 
+            <button
               onClick={() => setIsActionMenuOpen(true)}
               className="w-full py-4 mb-4 rounded-2xl font-black text-sm uppercase tracking-widest bg-red-700 hover:bg-red-600 text-white shadow-[0_0_20px_rgba(204,0,0,0.3)] border border-red-500/50 active:scale-95 transition-all flex items-center justify-center gap-2 animate-pulse"
             >
@@ -512,37 +511,37 @@ export default function GamePage() {
           {isActionMenuOpen && (
             <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-end justify-center animate-in fade-in duration-300">
               <div className="bg-zinc-900 w-full max-w-md rounded-t-[32px] p-6 pb-12 border-t border-zinc-700 shadow-2xl animate-in slide-in-from-bottom-12 duration-300">
-                 <h3 className="text-zinc-400 font-bold text-center uppercase tracking-widest mb-6 text-xs">
-                   {getActionMenuTitle()}
-                 </h3>
-                 <div className="flex flex-col gap-2 max-h-[50vh] overflow-y-auto no-scrollbar pb-4">
-                   {room.players.filter(p => p.isAlive && p.id !== myPlayer?.id).map(p => (
-                     <button 
-                       key={p.id}
-                       onClick={() => {
-                          if (room.currentPhase === 'DAY_VOTING') submitDayVote(p.id);
-                          if (room.currentPhase === 'NIGHT_MAFIA') submitMafiaShoot(p.id);
-                          if (room.currentPhase === 'NIGHT_DON') submitDonCheck(p.id);
-                          if (room.currentPhase === 'NIGHT_SHERIFF') submitSheriffCheck(p.id);
-                          setIsActionMenuOpen(false);
-                       }}
-                       className="flex items-center justify-between p-4 rounded-2xl bg-zinc-950 border border-zinc-800 hover:border-red-900/50 hover:bg-red-950/20 active:scale-95 transition-all"
-                     >
-                       <div className="flex items-center gap-4">
-                         <span className="w-8 h-8 rounded-full bg-zinc-800 text-zinc-300 flex items-center justify-center text-xs font-bold border border-zinc-700">{p.seatNumber}</span>
-                         <div className="flex flex-col items-start">
-                           <span className="text-zinc-200 font-bold">{p.user.username}</span>
-                         </div>
-                       </div>
-                       <span className="text-[10px] font-black text-red-500 uppercase tracking-widest bg-red-950/40 px-3 py-1.5 rounded-lg border border-red-900/50">
-                         {getActionBtnLabel()}
-                       </span>
-                     </button>
-                   ))}
-                 </div>
-                 <button onClick={() => setIsActionMenuOpen(false)} className="w-full mt-2 py-4 rounded-xl text-zinc-500 font-bold uppercase tracking-widest text-xs hover:text-zinc-300 hover:bg-zinc-800/50 transition-all">
-                   Отмена
-                 </button>
+                <h3 className="text-zinc-400 font-bold text-center uppercase tracking-widest mb-6 text-xs">
+                  {getActionMenuTitle()}
+                </h3>
+                <div className="flex flex-col gap-2 max-h-[50vh] overflow-y-auto no-scrollbar pb-4">
+                  {room.players.filter(p => p.isAlive && p.id !== myPlayer?.id).map(p => (
+                    <button
+                      key={p.id}
+                      onClick={() => {
+                        if (room.currentPhase === 'DAY_VOTING') submitDayVote(p.id);
+                        if (room.currentPhase === 'NIGHT_MAFIA') submitMafiaShoot(p.id);
+                        if (room.currentPhase === 'NIGHT_DON') submitDonCheck(p.id);
+                        if (room.currentPhase === 'NIGHT_SHERIFF') submitSheriffCheck(p.id);
+                        setIsActionMenuOpen(false);
+                      }}
+                      className="flex items-center justify-between p-4 rounded-2xl bg-zinc-950 border border-zinc-800 hover:border-red-900/50 hover:bg-red-950/20 active:scale-95 transition-all"
+                    >
+                      <div className="flex items-center gap-4">
+                        <span className="w-8 h-8 rounded-full bg-zinc-800 text-zinc-300 flex items-center justify-center text-xs font-bold border border-zinc-700">{p.seatNumber}</span>
+                        <div className="flex flex-col items-start">
+                          <span className="text-zinc-200 font-bold">{p.user.username}</span>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-black text-red-500 uppercase tracking-widest bg-red-950/40 px-3 py-1.5 rounded-lg border border-red-900/50">
+                        {getActionBtnLabel()}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                <button onClick={() => setIsActionMenuOpen(false)} className="w-full mt-2 py-4 rounded-xl text-zinc-500 font-bold uppercase tracking-widest text-xs hover:text-zinc-300 hover:bg-zinc-800/50 transition-all">
+                  Отмена
+                </button>
               </div>
             </div>
           )}

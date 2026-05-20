@@ -22,7 +22,7 @@ export async function broadcastToRoom(roomId: string, message: WSMessage) {
   });
 
   const rawMessage = JSON.stringify(message);
-  
+
   players.forEach((player) => {
     const connection = activePlayers.get(player.id);
     if (connection && connection.socket.readyState === WebSocket.OPEN) {
@@ -92,7 +92,7 @@ export function setupWebSocket(server: HTTPServer) {
             });
 
             let player = room.players.find(p => p.userId === userId);
-            
+
             if (!player) {
               if (room.players.length >= 10) {
                 sendError(ws, 'Room is full (max 10 players)');
@@ -290,7 +290,7 @@ export function setupWebSocket(server: HTTPServer) {
 
         if (connection) {
           const { roomId, userId } = connection;
-          
+
           const room = await prisma.room.findUnique({
             where: { id: roomId },
             include: { players: true }
@@ -300,19 +300,19 @@ export function setupWebSocket(server: HTTPServer) {
             if (room.status === 'LOBBY') {
               await prisma.player.delete({
                 where: { id: currentPlayerId }
-              }).catch(() => {});
+              }).catch(() => { });
 
               const remainingPlayers = room.players.filter(p => p.id !== currentPlayerId);
               if (remainingPlayers.length === 0) {
                 await prisma.room.delete({
                   where: { id: roomId }
-                }).catch(() => {});
+                }).catch(() => { });
               } else {
                 if (room.hostId === userId) {
                   await prisma.room.update({
                     where: { id: roomId },
                     data: { hostId: remainingPlayers[0].userId }
-                  }).catch(() => {});
+                  }).catch(() => { });
                 }
 
                 const updatedRoom = await prisma.room.findUnique({
