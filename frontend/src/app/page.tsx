@@ -348,10 +348,10 @@ export default function GamePage() {
             <button onClick={createRoom} disabled={isLoading} className="w-full py-4 rounded-xl font-bold text-xs uppercase tracking-[0.2em] bg-zinc-100 hover:bg-white text-black shadow-lg shadow-zinc-100/10 active:scale-95 transition-all flex items-center justify-center gap-3">
               {isLoading ? 'Загрузка...' : <><Plus className="w-4 h-4" /> Создать стол</>}
             </button>
-            <div className="flex items-center gap-3">
-              <input type="text" placeholder="КОД КОМНАТЫ" maxLength={4} value={roomCodeInput} onChange={(e) => setRoomCodeInput(e.target.value.toUpperCase())} className="flex-1 bg-zinc-900/80 border border-zinc-800 rounded-xl px-4 py-4 text-center tracking-[0.4em] font-black uppercase text-zinc-200 focus:outline-none focus:border-yellow-600/50 transition-all placeholder:text-zinc-700" />
-              <button onClick={joinRoom} disabled={isLoading || roomCodeInput.length < 4} className="h-full aspect-square rounded-xl font-bold bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 active:scale-95 transition-all flex items-center justify-center disabled:opacity-50">
-                <ArrowRight className="w-5 h-5" />
+            <div className="flex items-center justify-center gap-2 max-w-[200px] mx-auto">
+              <input type="text" placeholder="КОД" maxLength={4} value={roomCodeInput} onChange={(e) => setRoomCodeInput(e.target.value.toUpperCase())} className="flex-1 bg-zinc-900/80 border border-zinc-800 rounded-lg px-3 py-2 text-center tracking-widest font-bold uppercase text-zinc-200 text-sm focus:outline-none focus:border-yellow-600/50 transition-all placeholder:text-zinc-700" />
+              <button onClick={joinRoom} disabled={isLoading || roomCodeInput.length < 4} className="h-[36px] w-[36px] rounded-lg font-bold bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 active:scale-95 transition-all flex items-center justify-center disabled:opacity-50">
+                <ArrowRight className="w-4 h-4" />
               </button>
             </div>
           </div>
